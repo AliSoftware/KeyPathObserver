@@ -10,10 +10,10 @@
 typedef void (^KeyPathObserverActionBlock)(id obj, NSString* keyPath, id oldVal, id newVal);
 
 
-/* Typical usage:
+/*
+ * Typical usage:
  *
- * [[KeyPathObserver observerForObject:self]
- *  onKeyPathValueChange:@"title" execute:^(id obj, NSString* kp, id old, id new)
+ * [self onKeyPathValueChange:@"title" execute:^(id obj, NSString* kp, id old, id new)
  *  {
  *      // Code to execute when the self.title property is assigned a new value
  *      if (old != new)
@@ -22,21 +22,18 @@ typedef void (^KeyPathObserverActionBlock)(id obj, NSString* keyPath, id oldVal,
  *      }
  *  }];
  *
- * Note:
- *   The KeyPathObserver is unique for each object instance.
- *   So calling the method +observerForObject: with the same object will always return the same KeyPathObserver
  */
 
-@interface KeyPathObserver : NSObject
-
-//! Access the observer associated with the given object.
-+(KeyPathObserver*)observerForObject:(id)object;
+@interface NSObject (KeyPathObserver)
 
 //! Add a block to execute when a given keyPath is affected.
+//! * Calling this method multiple times adds blocks to the list of blocks to execute: alls the blocks added will be executed in turn.
+//! * Calling this method with a nil block removes all the blocks associated with the keyPath
 //! @note affecting the same value as the already affected value for a keyPath will still trigger the block execution
 //!       You may want to check if the "old" and "new" values are different before doing some action, with "old != new" for objects
 //!       or (![old isEqual:new]) for NSValue objects encapsulating structs or atomic types (like CGRects for example)
 -(void)onKeyPathValueChange:(NSString*)keyPath execute:(KeyPathObserverActionBlock)block;
+
 
 //! List the keyPaths actually registered for observation by the KeyPathObserver object
 //! @note this will not list the keyPath obsvered by calling -addObserver:forKeyPath:options:context: directly

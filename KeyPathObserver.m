@@ -9,12 +9,30 @@
 #import <objc/runtime.h>
 
 
-
-@interface KeyPathObserver ()
--(id)initWithTarget:(id)object;
+@interface KeyPathObserver : NSObject
++(KeyPathObserver*)observerForObject:(id)object;
 @property(nonatomic, retain) NSMutableDictionary* blocksMappings;
 @property(nonatomic, assign) id targetObject;
 @end
+
+
+
+@implementation NSObject (KeyPathObserver)
+
+-(void)onKeyPathValueChange:(NSString*)keyPath execute:(KeyPathObserverActionBlock)block
+{
+    [[KeyPathObserver observerForObject:self] onKeyPathValueChange:keyPath execute:block];
+}
+
+-(NSArray*)observedKeyPaths
+{
+    return [[KeyPathObserver observerForObject:self].blocksMappings allKeys];
+}
+
+
+@end
+
+
 
 
 
@@ -35,45 +53,37 @@ static char kKeyPathObserverContext;
         observer = (KeyPathObserver*)objc_getAssociatedObject(object, &kKeyPathObserverContext);
         if (!observer)
         {
-            observer = [[[self alloc] initWithTarget:object] autorelease];
+            observer = [[[self alloc] init] autorelease];
+            observer.blocksMappings = [NSMutableDictionary dictionary];
+            observer.targetObject = object;
             objc_setAssociatedObject(object, &kKeyPathObserverContext, observer, OBJC_ASSOCIATION_RETAIN);
         }
     }
     return observer;
 }
 
-
 -(void)onKeyPathValueChange:(NSString*)keyPath execute:(KeyPathObserverActionBlock)block
 {
     if (block)
     {
-        [self.blocksMappings setObject:[[block copy] autorelease] forKey:keyPath];
-        NSKeyValueObservingOptions options = (NSKeyValueObservingOptionOld|NSKeyValueObservingOptionNew);
-        [self.targetObject addObserver:self forKeyPath:keyPath options:options context:&kKeyPathObserverContext];
+        NSMutableArray* blocks = [self.blocksMappings objectForKey:keyPath];
+        if (!blocks)
+        {
+            blocks = [NSMutableArray array];
+            [self.blocksMappings setObject:blocks forKey:keyPath];
+            NSKeyValueObservingOptions options = (NSKeyValueObservingOptionOld|NSKeyValueObservingOptionNew);
+            [self.targetObject addObserver:self forKeyPath:keyPath options:options context:&kKeyPathObserverContext];
+        }
+        [blocks addObject:[[block copy] autorelease]];
     } else {
         [self.targetObject removeObserver:self forKeyPath:keyPath context:&kKeyPathObserverContext];
         [self.blocksMappings removeObjectForKey:keyPath];
     }
 }
 
--(NSArray*)observedKeyPaths
-{
-    return [self.blocksMappings allKeys];
-}
-
 //////////////////////////////////////////////////////////////////////////////////////////
 #pragma mark - Setup & Teardown
 
--(id)initWithTarget:(id)object
-{
-    self = [super init];
-    if (self)
-    {
-        self.blocksMappings = [NSMutableDictionary dictionary];
-        self.targetObject = object;
-    }
-    return self;
-}
 
 -(void)dealloc
 {
@@ -92,8 +102,8 @@ static char kKeyPathObserverContext;
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    KeyPathObserverActionBlock block = [self.blocksMappings objectForKey:keyPath];
-    if (block)
+    NSMutableArray* blocks = [self.blocksMappings objectForKey:keyPath];
+    for(KeyPathObserverActionBlock block in blocks)
     {
         id old = [change objectForKey:NSKeyValueChangeOldKey];
         id new = [change objectForKey:NSKeyValueChangeNewKey];
