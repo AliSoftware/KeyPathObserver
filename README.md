@@ -16,14 +16,14 @@ Example 1: observing a CGRect property
         if (![old isEqual:new])
         {
           NSLog(@"The frame changed from %@ to %@", old, new);
-        } else {
-          NSLog(@"The frame property was reaffected to the same CGRect value %@", new);
           CGRect newFrame = [new CGRectValue];
           ...
+        } else {
+          NSLog(@"The frame property was reaffected to the same CGRect value %@", new);
         }
      }];
 
-Example 2: Observing an UIColor object and using a composite keyPath
+Example 2: Observing an `UIColor` object and using a composite keyPath
 
     [self onKeyPathValueChange:@"view.backgroundColor"
      execute:^(id obj, NSString* kp, id old, id new)
