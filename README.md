@@ -33,3 +33,16 @@ Example 2: Observing an UIColor object and using a composite keyPath
           NSLog(@"The view background color has been changed");
         }
      }];
+
+# Additional note: avoid retain cycles
+
+Be careful to avoid retain cycles when using this helper method (as with any other usage of blocks retained by `self`).
+
+Especially, the blocks you provide to `onKeyPathValueChange:execute:` are retained by `self`, so you should
+not use `self` directly in the block to avoid `self` to be retained by the block and creating a retain cycle.
+
+Instead, you should declare a weak non-retaining reference to self like this before your block:
+
+    __block __weak typeof(self) weakSelf = self;
+    
+And use weakSelf instead of self in the block body, so that `self` won't be retained by the block.
