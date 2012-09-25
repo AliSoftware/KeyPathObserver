@@ -8,13 +8,21 @@
 #import "KeyPathObserver.h"
 #import <objc/runtime.h>
 
+//////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark - KeyPathObserver Helper Class Interface
+
 
 @interface KeyPathObserver : NSObject
 +(KeyPathObserver*)observerForObject:(id)object;
+-(void)onKeyPathValueChange:(NSString*)keyPath execute:(KeyPathObserverActionBlock)block;
+-(void)removeAllObservedKeyPaths;
 @property(nonatomic, retain) NSMutableDictionary* blocksMappings;
 @property(nonatomic, assign) id targetObject;
 @end
 
+
+//////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark - KeyPathObserver Category Implementation
 
 
 @implementation NSObject (KeyPathObserver)
@@ -29,11 +37,18 @@
     return [[KeyPathObserver observerForObject:self].blocksMappings allKeys];
 }
 
+-(void)removeAllObservedKeyPaths
+{
+    [[KeyPathObserver observerForObject:self] removeAllObservedKeyPaths];
+}
+
 
 @end
 
 
 
+//////////////////////////////////////////////////////////////////////////////////////////
+#pragma mark - KeyPathObserver Helper Class Implementation
 
 
 @implementation KeyPathObserver
@@ -41,9 +56,6 @@
 @synthesize targetObject = _targetObject;
 
 static char kKeyPathObserverContext;
-
-//////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark - Public methods
 
 +(KeyPathObserver*)observerForObject:(id)object
 {
@@ -81,24 +93,23 @@ static char kKeyPathObserverContext;
     }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark - Setup & Teardown
-
-
--(void)dealloc
+-(void)removeAllObservedKeyPaths
 {
-    // Remove observers
     NSEnumerator* reverseEnum = [self.blocksMappings.allKeys reverseObjectEnumerator];
     for(NSString* keyPath in reverseEnum)
     {
         [self.targetObject removeObserver:self forKeyPath:keyPath context:&kKeyPathObserverContext];
     }
+    [_blocksMappings removeAllObjects];
+}
+
+-(void)dealloc
+{
+    // Remove observers
+    [self removeAllObservedKeyPaths];
     [_blocksMappings release];
     [super dealloc];
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////
-#pragma mark - KVO Implementation
 
 -(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
